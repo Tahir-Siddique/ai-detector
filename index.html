@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Content Detector</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            line-height: 1.5;
+        }
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 1rem;
+            margin: 1rem 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        button:hover {
+            background-color: #1d4ed8;
+        }
+        #result {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 4px;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .metric-card {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI Content Detector</h1>
+        <p>Paste your text below to analyze it for potential AI-generated content markers.</p>
+        
+        <textarea id="textInput" placeholder="Paste your text here (minimum 100 characters recommended for better analysis)"></textarea>
+        
+        <button onclick="analyzeText()">Analyze Text</button>
+        
+        <div id="result"></div>
+        <div class="metrics" id="metrics"></div>
+    </div>
+
+    <script>
+        function analyzeText() {
+            const text = document.getElementById('textInput').value;
+            
+            if (text.length < 50) {
+                document.getElementById('result').innerHTML = 
+                    '<p style="color: #dc2626;">Please provide a longer text for better analysis (minimum 50 characters).</p>';
+                document.getElementById('metrics').innerHTML = '';
+                return;
+            }
+
+            // Calculate various metrics
+            const metrics = {
+                repetitiveness: calculateRepetitiveness(text),
+                naturalness: calculateNaturalness(text),
+                structuralPatterns: calculateStructuralPatterns(text),
+                vocabularyDiversity: calculateVocabularyDiversity(text)
+            };
+
+            // Calculate overall probability
+            const overallScore = calculateOverallScore(metrics);
+            
+            // Display results
+            displayResults(metrics, overallScore);
+        }
+
+        function calculateRepetitiveness(text) {
+            const words = text.toLowerCase().match(/\b\w+\b/g) || [];
+            const wordFreq = {};
+            words.forEach(word => {
+                wordFreq[word] = (wordFreq[word] || 0) + 1;
+            });
+            
+            const repetitionScore = Object.values(wordFreq)
+                .filter(freq => freq > 1).length / words.length;
+            
+            return Math.max(0, Math.min(100, (1 - repetitionScore) * 100));
+        }
+
+        function calculateNaturalness(text) {
+            const sentences = text.split(/[.!?]+/).filter(Boolean);
+            let score = 100;
+            
+            // Check for variety in sentence length
+            const lengths = sentences.map(s => s.trim().length);
+            const avgLength = lengths.reduce((a, b) => a + b, 0) / lengths.length;
+            const variance = lengths.reduce((a, b) => a + Math.pow(b - avgLength, 2), 0) / lengths.length;
+            
+            if (variance < 100) score -= 20; // Penalize too uniform sentences
+            if (avgLength > 150) score -= 10; // Penalize very long sentences
+            
+            return Math.max(0, Math.min(100, score));
+        }
+
+        function calculateStructuralPatterns(text) {
+            const paragraphs = text.split('\n\n').filter(Boolean);
+            let score = 100;
+            
+            // Check for too uniform paragraph structure
+            const lengths = paragraphs.map(p => p.length);
+            const avgLength = lengths.reduce((a, b) => a + b, 0) / lengths.length;
+            const variance = lengths.reduce((a, b) => a + Math.pow(b - avgLength, 2), 0) / lengths.length;
+            
+            if (variance < 200) score -= 15;
+            if (paragraphs.length === 1) score -= 10;
+            
+            return Math.max(0, Math.min(100, score));
+        }
+
+        function calculateVocabularyDiversity(text) {
+            const words = text.toLowerCase().match(/\b\w+\b/g) || [];
+            const uniqueWords = new Set(words);
+            
+            return Math.max(0, Math.min(100, (uniqueWords.size / words.length) * 100));
+        }
+
+        function calculateOverallScore(metrics) {
+            const weights = {
+                repetitiveness: 0.3,
+                naturalness: 0.3,
+                structuralPatterns: 0.2,
+                vocabularyDiversity: 0.2
+            };
+
+            return Object.entries(metrics).reduce((score, [key, value]) => {
+                return score + (value * weights[key]);
+            }, 0);
+        }
+
+        function displayResults(metrics, overallScore) {
+            const resultDiv = document.getElementById('result');
+            const metricsDiv = document.getElementById('metrics');
+            
+            // Display overall result
+            const resultColor = overallScore > 70 ? '#059669' : overallScore > 40 ? '#ca8a04' : '#dc2626';
+            const resultText = overallScore > 70 ? 'Likely Human-Written' : 
+                             overallScore > 40 ? 'Uncertain' : 'Potentially AI-Generated';
+            
+            resultDiv.innerHTML = `
+                <h2 style="color: ${resultColor}">Analysis Result: ${resultText}</h2>
+                <p>Overall Score: ${overallScore.toFixed(1)}%</p>
+                <p><small>Note: This is a basic analysis and should not be considered definitive.</small></p>
+            `;
+
+            // Display individual metrics
+            metricsDiv.innerHTML = Object.entries(metrics)
+                .map(([key, value]) => `
+                    <div class="metric-card">
+                        <div>${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</div>
+                        <div class="metric-value">${value.toFixed(1)}%</div>
+                    </div>
+                `).join('');
+        }
+    </script>
+</body>
+</html>
